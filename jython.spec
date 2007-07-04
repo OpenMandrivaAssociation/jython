@@ -196,7 +196,7 @@ fi
 # Configuration
 MAIN_CLASS=org.python.util.%{name}
 BASE_FLAGS=-Dpython.home=%{_datadir}/%{name}
-BASE_JARS="%{name} oro servlet"
+BASE_JARS="%{name} jline libreadline-java oro servlet"
 
 if [ -z "\$JYTHON_CONSOLE_READLINELIB" ]; then
     JYTHON_CONSOLE_READLINELIB="jline"
