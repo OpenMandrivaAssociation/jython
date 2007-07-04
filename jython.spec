@@ -35,26 +35,29 @@
 
 Name:           jython
 Version:        2.2
-Release:        %mkrel 0.b1.1.5
+Release:        %mkrel 0.rc1.1.1
 Epoch:          0
 Summary:        Java source interpreter
 License:        Modified CNRI Open Source License
 URL:            http://www.jython.org/
-# svn co https://jython.svn.sourceforge.net/svnroot/jython/trunk/jython jython -r3090
-Source0:        %{name}-svn-r3090.tar.bz2
+# svn co https://jython.svn.sourceforge.net/svnroot/jython/trunk/jython jython -r3280
+Source0:        %{name}-svn-r3280.tar.bz2
 Patch0:         %{name}-cachedir.patch
 Patch1:         %{name}-no-copy-python.patch
+Requires:       jline
 Requires:       jpackage-utils >= 0:1.6
 Requires:       jakarta-oro
+Requires:       libreadline-java
 Requires:       servlet
 BuildRequires:  ant >= 0:1.6
 BuildRequires:  ht2html
+BuildRequires:  jline
 BuildRequires:  libreadline-java
 #tmp#BuildRequires:  mysql-connector-java
 BuildRequires:  jakarta-oro
 BuildRequires:  javacc
 BuildRequires:  python >= 0:%{cpython_version}
-# XXX: PyXML now seems to be shipped with jython
+# FIXME: PyXML now seems to be shipped with jython
 # FIXME: Keeping internal PyXML for now
 #BuildRequires:  PyXML >= 0:%{pyxml_version}
 BuildRequires:  servlet
@@ -64,7 +67,7 @@ Group:          Development/Java
 %if ! %{gcj_support}
 BuildArch:      noarch
 %endif
-Buildroot:      %{_tmppath}/%{name}-%{version}-buildroot
+BuildRoot:      %{_tmppath}/%{name}-%{version}-root
 %if %{gcj_support}
 Requires(post):   java-gcj-compat
 Requires(postun): java-gcj-compat
@@ -123,7 +126,7 @@ Demonstrations and samples for %{name}.
 %{_bindir}/find . -type d -name .svn | %{_bindir}/xargs %{__rm} -r
 
 %build
-export CLASSPATH=$(build-classpath libreadline-java oro servlet)
+export CLASSPATH=$(build-classpath jline libreadline-java oro servlet)
 MYSQLJDBC=
 MYSQLJDBC=$(build-classpath mysql-connector-java 2>/dev/null) || :
 [ -n "$MYSQLJDBC" ] && CLASSPATH=$CLASSPATH:$MYSQLJDBC
@@ -192,15 +195,21 @@ fi
 
 # Configuration
 MAIN_CLASS=org.python.util.%{name}
-BASE_FLAGS=-Dpython.home=%{_datadir}/%{name}/Lib
+BASE_FLAGS=-Dpython.home=%{_datadir}/%{name}
 BASE_JARS="%{name} oro servlet"
 
-if [ -r %{_libdir}/libJavaEditline.so ]; then
+if [ -z "\$JYTHON_CONSOLE_READLINELIB" ]; then
+    JYTHON_CONSOLE_READLINELIB="jline"
+fi
+
+if [ x"\$JYTHON_CONSOLE_READLINELIB" = xjline ]; then
+  BASE_FLAGS="\$BASE_FLAGS -Dpython.console=org.python.util.JLineConsole"
+elif [ x"\$JYTHON_CONSOLE_READLINELIB" = xeditline -a -x %{_libdir}/libJavaEditline.so ]; then
   BASE_FLAGS="\$BASE_FLAGS -Dpython.console.readlinelib=Editline"
   BASE_FLAGS="\$BASE_FLAGS -Dpython.console=org.python.util.ReadlineConsole"
   BASE_FLAGS="\$BASE_FLAGS -Djava.library.path=%{_libdir}"
   BASE_JARS="\$BASE_JARS libreadline-java"
-elif [ -r %{_libdir}/libJavaReadline.so ]; then
+elif [ x"\$JYTHON_CONSOLE_READLINELIB" = xreadline -a -x %{_libdir}/libJavaReadline.so ]; then
   BASE_FLAGS="\$BASE_FLAGS -Dpython.console.readlinelib=GnuReadline"
   BASE_FLAGS="\$BASE_FLAGS -Dpython.console=org.python.util.ReadlineConsole"
   BASE_FLAGS="\$BASE_FLAGS -Djava.library.path=%{_libdir}"
@@ -292,5 +301,3 @@ fi
 %files demo
 %defattr(-,root,root)
 %{_datadir}/%{name}/Demo
-
-
