@@ -35,7 +35,7 @@
 
 Name:           jython
 Version:        2.2
-Release:        %mkrel 0.rc1.1.1
+Release:        %mkrel 0.rc1.1.2
 Epoch:          0
 Summary:        Java source interpreter
 License:        Modified CNRI Open Source License
@@ -144,7 +144,7 @@ popd
        -Dpython.exe=%{__python} \
        -Dpython.home=%{py_puresitedir} \
        -Dht2html.dir=%{_datadir}/ht2html \
-       -DjavaccHome={_datadir}/javacc \
+       -DjavaccHome=%{_datadir}/javacc \
        -Djavacc.jar=%{_javadir}/javacc.jar \
   parser copy-dist
 
