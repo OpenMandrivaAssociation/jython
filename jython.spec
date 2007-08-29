@@ -35,13 +35,13 @@
 
 Name:           jython
 Version:        2.2
-Release:        %mkrel 0.rc1.1.2
+Release:        %mkrel 1.0.1
 Epoch:          0
 Summary:        Java source interpreter
 License:        Modified CNRI Open Source License
 URL:            http://www.jython.org/
-# svn co https://jython.svn.sourceforge.net/svnroot/jython/trunk/jython jython -r3280
-Source0:        %{name}-svn-r3280.tar.bz2
+# svn export https://jython.svn.sourceforge.net/svnroot/jython/tags/Release_2_2/jython jython-2.2
+Source0:        %{name}-%{version}.tar.bz2
 Patch0:         %{name}-cachedir.patch
 Patch1:         %{name}-no-copy-python.patch
 Requires:       jline
@@ -66,8 +66,9 @@ Group:          Development/Java
 #Vendor:        JPackage Project
 %if ! %{gcj_support}
 BuildArch:      noarch
+BuildRequires:  java-devel
 %endif
-BuildRoot:      %{_tmppath}/%{name}-%{version}-root
+BuildRoot:      %{_tmppath}/%{name}-%{version}-%{release}-root
 %if %{gcj_support}
 Requires(post):   java-gcj-compat
 Requires(postun): java-gcj-compat
@@ -102,8 +103,6 @@ Documentation for %{name}.
 %package javadoc
 Summary:        Javadoc for %{name}
 Group:          Development/Java
-Requires(post):   /bin/rm,/bin/ln
-Requires(postun): /bin/rm
 
 %description javadoc
 Javadoc for %{name}.
@@ -117,22 +116,22 @@ Group:          Development/Java
 Demonstrations and samples for %{name}.
 
 %prep
-%setup -q -n %{name}
+%setup -q
 %patch0 -p1
 %patch1 -p1
 # remove all binary libs
 %{_bindir}/find . -name "*.jar" | %{_bindir}/xargs %{__rm}
 # remove all SVN files
-%{_bindir}/find . -type d -name .svn | %{_bindir}/xargs %{__rm} -r
+#%{_bindir}/find . -type d -name .svn | %{_bindir}/xargs %{__rm} -r
+
+%{__perl} -pi -e 's/execon/apply/g' build.xml
+%{__perl} -pi -e 's/ if="full-build"//g' build.xml
 
 %build
 export CLASSPATH=$(build-classpath jline libreadline-java oro servlet)
 MYSQLJDBC=
 MYSQLJDBC=$(build-classpath mysql-connector-java 2>/dev/null) || :
 [ -n "$MYSQLJDBC" ] && CLASSPATH=$CLASSPATH:$MYSQLJDBC
-
-%{__perl} -pi -e 's/execon/apply/g' build.xml
-%{__perl} -pi -e 's/ if="full-build"//g' build.xml
 
 pushd src/org/python/parser
 %{__perl} -pi -e 's/ unless="parser.regen.notreq"//g' build.xml
@@ -159,7 +158,7 @@ rm -f Doc/Makefile
 rm -rf Doc/api
 # javadoc
 install -d -m 755 $RPM_BUILD_ROOT%{_javadocdir}/%{name}-%{version}
-cp -pr dist/Doc/javadoc/* $RPM_BUILD_ROOT%{_javadocdir}/%{name}-%{version}
+cp -a dist/Doc/javadoc/* $RPM_BUILD_ROOT%{_javadocdir}/%{name}-%{version}
 ln -s %{name}-%{version} $RPM_BUILD_ROOT%{_javadocdir}/%{name}
 # data
 install -d -m 755 $RPM_BUILD_ROOT%{_datadir}/%{name}
@@ -256,15 +255,6 @@ done
 %clean
 rm -rf $RPM_BUILD_ROOT
 
-%post javadoc
-rm -f %{_javadocdir}/%{name}
-ln -s %{name}-%{version} %{_javadocdir}/%{name}
-
-%postun javadoc
-if [ "$1" = "0" ]; then
-    rm -f %{_javadocdir}/%{name}
-fi
-
 %if %{gcj_support}
 %post
 %{update_gcjdb}
@@ -296,7 +286,7 @@ fi
 %files javadoc
 %defattr(-,root,root)
 %{_javadocdir}/%{name}-%{version}
-%ghost %{_javadocdir}/%{name}
+%{_javadocdir}/%{name}
 
 %files demo
 %defattr(-,root,root)
