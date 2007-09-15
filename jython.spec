@@ -35,7 +35,7 @@
 
 Name:           jython
 Version:        2.2
-Release:        %mkrel 1.0.1
+Release:        %mkrel 1.0.2
 Epoch:          0
 Summary:        Java source interpreter
 License:        Modified CNRI Open Source License
@@ -70,8 +70,6 @@ BuildRequires:  java-devel
 %endif
 BuildRoot:      %{_tmppath}/%{name}-%{version}-%{release}-root
 %if %{gcj_support}
-Requires(post):   java-gcj-compat
-Requires(postun): java-gcj-compat
 BuildRequires:    java-gcj-compat-devel
 %endif
 
