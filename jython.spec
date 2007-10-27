@@ -34,13 +34,13 @@
 %define section         free
 
 Name:           jython
-Version:        2.2
-Release:        %mkrel 1.0.2
+Version:        2.2.1
+Release:        %mkrel 0.0.1
 Epoch:          0
 Summary:        Java source interpreter
 License:        Modified CNRI Open Source License
 URL:            http://www.jython.org/
-# svn export https://jython.svn.sourceforge.net/svnroot/jython/tags/Release_2_2/jython jython-2.2
+# svn export https://jython.svn.sourceforge.net/svnroot/jython/tags/Release_2_2_1/jython jython-2.2
 Source0:        %{name}-%{version}.tar.bz2
 Patch0:         %{name}-cachedir.patch
 Patch1:         %{name}-no-copy-python.patch
