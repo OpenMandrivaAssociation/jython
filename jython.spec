@@ -35,7 +35,7 @@
 
 Name:           jython
 Version:        2.2.1
-Release:        %mkrel 0.0.1
+Release:        %mkrel 0.0.2
 Epoch:          0
 Summary:        Java source interpreter
 License:        Modified CNRI Open Source License
@@ -49,6 +49,7 @@ Requires:       jpackage-utils >= 0:1.6
 Requires:       jakarta-oro
 Requires:       libreadline-java
 Requires:       servlet
+BuildRequires:  java-rpmbuild
 BuildRequires:  ant >= 0:1.6
 BuildRequires:  ht2html
 BuildRequires:  jline
