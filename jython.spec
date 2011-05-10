@@ -28,51 +28,44 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
 
-%define gcj_support 1
-%define cpython_version 2.3
-%define pyxml_version   0.8.4
-%define section         free
+%define cpython_version	%{py_ver}
+%define	pyxml_version	0.8.4
+%define	section		free
 
-Name:           jython
-Version:        2.2.1
-Release:        %mkrel 0.0.2
-Epoch:          0
-Summary:        Java source interpreter
-License:        Modified CNRI Open Source License
-URL:            http://www.jython.org/
+Name:		jython
+Version:	2.2.1
+Release:	1
+Summary:	Java source interpreter
+License:	Modified CNRI Open Source License
+URL:		http://www.jython.org/
 # svn export https://jython.svn.sourceforge.net/svnroot/jython/tags/Release_2_2_1/jython jython-2.2
-Source0:        %{name}-%{version}.tar.bz2
-Patch0:         %{name}-cachedir.patch
-Patch1:         %{name}-no-copy-python.patch
-Requires:       jline
-Requires:       jpackage-utils >= 0:1.6
-Requires:       jakarta-oro
-Requires:       libreadline-java
-Requires:       servlet
-BuildRequires:  java-rpmbuild
-BuildRequires:  ant >= 0:1.6
-BuildRequires:  ht2html
-BuildRequires:  jline
-BuildRequires:  libreadline-java
-#tmp#BuildRequires:  mysql-connector-java
-BuildRequires:  jakarta-oro
-BuildRequires:  javacc
-BuildRequires:  python >= 0:%{cpython_version}
+Source0:	%{name}-%{version}.tar.bz2
+Patch0:		%{name}-cachedir.patch
+Patch1:		%{name}-no-copy-python.patch
+Patch2:		%{name}-nofullbuildpath.patch
+Requires:	jline
+Requires:	jpackage-utils >= 0:1.6
+Requires:	jakarta-oro
+Requires:	libreadline-java
+Requires:	servlet
+BuildRequires:	java-rpmbuild
+BuildRequires:	ant >= 0:1.6
+BuildRequires:	ht2html
+BuildRequires:	jline
+BuildRequires:	libreadline-java
+#BuildRequires:	mysql-connector-java
+BuildRequires:	jakarta-oro
+BuildRequires:	javacc
+BuildRequires:	python
 # FIXME: PyXML now seems to be shipped with jython
 # FIXME: Keeping internal PyXML for now
-#BuildRequires:  PyXML >= 0:%{pyxml_version}
-BuildRequires:  servlet
-Group:          Development/Java
-#Distribution:  JPackage
-#Vendor:        JPackage Project
-%if ! %{gcj_support}
-BuildArch:      noarch
-BuildRequires:  java-devel
-%endif
-BuildRoot:      %{_tmppath}/%{name}-%{version}-%{release}-root
-%if %{gcj_support}
-BuildRequires:    java-gcj-compat-devel
-%endif
+#BuildRequires:	PyXML >= 0:%{pyxml_version}
+BuildRequires:	servlet
+Group:		Development/Java
+#Distribution:	JPackage
+#Vendor:	JPackage Project
+BuildArch:	noarch
+BuildRequires:	java-devel
 
 %description
 Jython is an implementation of the high-level, dynamic, object-oriented
@@ -92,32 +85,26 @@ This translates directly to increased programmer productivity. The
 seamless interaction between Python and Java allows developers to freely
 mix the two languages both during development and in shipping products.
 
-%package manual
-Summary:        Manual for %{name}
-Group:          Development/Java
+%package	manual
+Summary:	Manual for %{name}
+Group:		Development/Java
 
-%description manual
+%description	manual
 Documentation for %{name}.
 
-%package javadoc
-Summary:        Javadoc for %{name}
-Group:          Development/Java
+%package	demo
+Summary:	Demo for %{name}
+Requires:	%{name} = %{EVRD}
+Group:		Development/Java
 
-%description javadoc
-Javadoc for %{name}.
-
-%package demo
-Summary:        Demo for %{name}
-Requires:       %{name} = %{epoch}:%{version}-%{release}
-Group:          Development/Java
-
-%description demo
+%description	demo
 Demonstrations and samples for %{name}.
 
 %prep
 %setup -q
 %patch0 -p1
 %patch1 -p1
+%patch2 -p1 -b .nofullbuild~
 # remove all binary libs
 %{_bindir}/find . -name "*.jar" | %{_bindir}/xargs %{__rm}
 # remove all SVN files
@@ -125,47 +112,48 @@ Demonstrations and samples for %{name}.
 
 %{__perl} -pi -e 's/execon/apply/g' build.xml
 %{__perl} -pi -e 's/ if="full-build"//g' build.xml
+export CLASSPATH=$(build-classpath mysql-connector-java oro servlet)
+# FIXME: fix jpackage-utils to handle multilib correctly
+export CLASSPATH=$CLASSPATH:%{_libdir}/libreadline-java/libreadline-java.jar
 
-%build
-export CLASSPATH=$(build-classpath jline libreadline-java oro servlet)
-MYSQLJDBC=
-MYSQLJDBC=$(build-classpath mysql-connector-java 2>/dev/null) || :
-[ -n "$MYSQLJDBC" ] && CLASSPATH=$CLASSPATH:$MYSQLJDBC
+rm -rf org/apache
 
-pushd src/org/python/parser
-%{__perl} -pi -e 's/ unless="parser.regen.notreq"//g' build.xml
-%{ant} clean
+perl -p -i -e 's|execon|apply|g' build.xml
+
+ant \
+  -Dpython.home=%{_bindir} \
+  -Dht2html.dir=%{_datadir}/ht2html \
+  -Dpython.lib=./CPythonLib \
+  -Dpython.exe=%{_bindir}/python \
+  -DPyXmlHome=%{_libdir}/python%pyver \
+  -Dtargetver=1.3 \
+  copy-dist
+
+
+# remove #! from python files
+pushd dist
+  for f in `find . -name '*.py'`
+  do
+    sed --in-place  "s:#!\s*/usr.*::" $f
+  done
 popd
 
-%{ant} -Dnowarn=true \
-       -DPyXmlHome=%{py_platsitedir} \
-       -Dpython.exe=%{__python} \
-       -Dpython.home=%{py_puresitedir} \
-       -Dht2html.dir=%{_datadir}/ht2html \
-       -DjavaccHome=%{_datadir}/javacc \
-       -Djavacc.jar=%{_javadir}/javacc.jar \
-  parser copy-dist
-
 %install
-rm -rf $RPM_BUILD_ROOT
 # jar
 install -d -m 755 $RPM_BUILD_ROOT%{_javadir}
-install -m 644 dist/%{name}.jar $RPM_BUILD_ROOT%{_javadir}/%{name}-%{version}.jar
-(cd $RPM_BUILD_ROOT%{_javadir} && for jar in *-%{version}*; do ln -sf ${jar} ${jar/-%{version}/}; done)
-# manual
-rm -f Doc/Makefile
-rm -rf Doc/api
-# javadoc
-install -d -m 755 $RPM_BUILD_ROOT%{_javadocdir}/%{name}-%{version}
-cp -a dist/Doc/javadoc/* $RPM_BUILD_ROOT%{_javadocdir}/%{name}-%{version}
-ln -s %{name}-%{version} $RPM_BUILD_ROOT%{_javadocdir}/%{name}
+install -m 644 dist/%{name}.jar \
+  $RPM_BUILD_ROOT%{_javadir}/%{name}.jar
+
 # data
 install -d -m 755 $RPM_BUILD_ROOT%{_datadir}/%{name}
 # these are not supposed to be distributed
-find dist/Lib -type d -name test | xargs rm -rf
-cp -a dist/Lib $RPM_BUILD_ROOT%{_datadir}/%{name}
-cp -a dist/Tools $RPM_BUILD_ROOT%{_datadir}/%{name}
-cp -a dist/Demo $RPM_BUILD_ROOT%{_datadir}/%{name}
+
+cp -pr dist/Lib $RPM_BUILD_ROOT%{_datadir}/%{name}
+cp -pr dist/Tools $RPM_BUILD_ROOT%{_datadir}/%{name}
+# demo
+cp -pr dist/Demo $RPM_BUILD_ROOT%{_datadir}/%{name}
+# manual
+
 
 # registry
 install -m 644 registry $RPM_BUILD_ROOT%{_datadir}/%{name}
@@ -191,35 +179,26 @@ if [ -f \$HOME/.%{name}rc ] ; then
   . \$HOME/.%{name}rc
 fi
 
+# Arch-specific location of dependency
+case \$(uname -m) in
+   x86_64 | ia64 | s390x | ppc64 | sparc64 )
+      JYTHONLIBDIR="/usr/lib64" ;;
+   * )
+      JYTHONLIBDIR="/usr/lib" ;;
+esac
+
 # Configuration
 MAIN_CLASS=org.python.util.%{name}
 BASE_FLAGS=-Dpython.home=%{_datadir}/%{name}
-BASE_JARS="%{name} jline libreadline-java oro servlet"
+BASE_JARS="%{name} oro servlet mysql-connector-java"
 
-if [ -z "\$JYTHON_CONSOLE_READLINELIB" ]; then
-    JYTHON_CONSOLE_READLINELIB="jline"
-fi
-
-if [ x"\$JYTHON_CONSOLE_READLINELIB" = xjline ]; then
-  BASE_FLAGS="\$BASE_FLAGS -Dpython.console=org.python.util.JLineConsole"
-elif [ x"\$JYTHON_CONSOLE_READLINELIB" = xeditline -a -x %{_libdir}/libJavaEditline.so ]; then
-  BASE_FLAGS="\$BASE_FLAGS -Dpython.console.readlinelib=Editline"
-  BASE_FLAGS="\$BASE_FLAGS -Dpython.console=org.python.util.ReadlineConsole"
-  BASE_FLAGS="\$BASE_FLAGS -Djava.library.path=%{_libdir}"
-  BASE_JARS="\$BASE_JARS libreadline-java"
-elif [ x"\$JYTHON_CONSOLE_READLINELIB" = xreadline -a -x %{_libdir}/libJavaReadline.so ]; then
-  BASE_FLAGS="\$BASE_FLAGS -Dpython.console.readlinelib=GnuReadline"
-  BASE_FLAGS="\$BASE_FLAGS -Dpython.console=org.python.util.ReadlineConsole"
-  BASE_FLAGS="\$BASE_FLAGS -Djava.library.path=%{_libdir}"
-  BASE_JARS="\$BASE_JARS libreadline-java"
-fi
-
-if [ -f %{_javadir}/mysql-connector-java.jar ]; then
-  BASE_JARS="\$BASE_JARS mysql-connector-java"
-fi
+BASE_FLAGS="\$BASE_FLAGS -Dpython.console=org.python.util.ReadlineConsole"
+BASE_FLAGS="\$BASE_FLAGS -Djava.library.path=\$JYTHONLIBDIR/libreadline-java"
+BASE_FLAGS="\$BASE_FLAGS -Dpython.console.readlinelib=Editline"
 
 # Set parameters
 set_jvm
+CLASSPATH=$CLASSPATH:\$JYTHONLIBDIR/libreadline-java/libreadline-java.jar
 set_classpath \$BASE_JARS
 set_flags \$BASE_FLAGS
 set_options \$BASE_OPTIONS
@@ -237,33 +216,7 @@ cat > $RPM_BUILD_ROOT%{_bindir}/%{name}c << EOF
 %{_bindir}/%{name} %{_datadir}/%{name}/Tools/%{name}c/%{name}c.py "\$@"
 EOF
 
-#rm -f $RPM_BUILD_ROOT%{_datadir}/%{name}/Lib/UserDict.py
-
-for i in `%{_bindir}/find %{buildroot}%{_datadir}/%{name}/Lib -name '*.py'`; do
-  if %{__grep} '^#!.*python' $i; then
-    %{__perl} -pi -e 's|^#!.*/usr/bin/env.*python.*|#!%{__python}|' $i
-    %{__perl} -pi -e 's|/usr/local/bin/python|%{__python}|' $i    
-    %{__chmod} 0755 $i
-  fi
-done
-
-%if %{gcj_support}
-%{_bindir}/aot-compile-rpm
-%endif
-
-%clean
-rm -rf $RPM_BUILD_ROOT
-
-%if %{gcj_support}
-%post
-%{update_gcjdb}
-
-%postun
-%{clean_gcjdb}
-%endif
-
 %files
-%defattr(-,root,root)
 %doc ACKNOWLEDGMENTS NEWS LICENSE.txt README.txt
 %attr(0755,root,root) %{_bindir}/%{name}
 %attr(0755,root,root) %{_bindir}/%{name}c
@@ -273,20 +226,9 @@ rm -rf $RPM_BUILD_ROOT
 %attr(-,root,root) %{_datadir}/%{name}/Lib/*
 %{_datadir}/%{name}/Tools
 %{_datadir}/%{name}/registry
-%if %{gcj_support}
-%dir %{_libdir}/gcj/%{name}
-%attr(-,root,root) %{_libdir}/gcj/%{name}/*
-%endif
 
 %files manual
-%defattr(-,root,root)
-%doc dist/Doc/*.html dist/Doc/images
-
-%files javadoc
-%defattr(-,root,root)
-%{_javadocdir}/%{name}-%{version}
-%{_javadocdir}/%{name}
+%doc jython-manual-%{version}/*
 
 %files demo
-%defattr(-,root,root)
 %{_datadir}/%{name}/Demo
