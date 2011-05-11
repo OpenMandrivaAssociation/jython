@@ -85,13 +85,6 @@ This translates directly to increased programmer productivity. The
 seamless interaction between Python and Java allows developers to freely
 mix the two languages both during development and in shipping products.
 
-%package	manual
-Summary:	Manual for %{name}
-Group:		Development/Java
-
-%description	manual
-Documentation for %{name}.
-
 %package	demo
 Summary:	Demo for %{name}
 Requires:	%{name} = %{EVRD}
@@ -152,7 +145,6 @@ cp -pr dist/Lib $RPM_BUILD_ROOT%{_datadir}/%{name}
 cp -pr dist/Tools $RPM_BUILD_ROOT%{_datadir}/%{name}
 # demo
 cp -pr dist/Demo $RPM_BUILD_ROOT%{_datadir}/%{name}
-# manual
 
 
 # registry
@@ -226,9 +218,6 @@ EOF
 %attr(-,root,root) %{_datadir}/%{name}/Lib/*
 %{_datadir}/%{name}/Tools
 %{_datadir}/%{name}/registry
-
-%files manual
-%doc jython-manual-%{version}/*
 
 %files demo
 %{_datadir}/%{name}/Demo
