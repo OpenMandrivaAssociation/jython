@@ -133,26 +133,26 @@ popd
 
 %install
 # jar
-install -d -m 755 $RPM_BUILD_ROOT%{_javadir}
+install -d -m 755 %{buildroot}%{_javadir}
 install -m 644 dist/%{name}.jar \
-  $RPM_BUILD_ROOT%{_javadir}/%{name}.jar
+  %{buildroot}%{_javadir}/%{name}.jar
 
 # data
-install -d -m 755 $RPM_BUILD_ROOT%{_datadir}/%{name}
+install -d -m 755 %{buildroot}%{_datadir}/%{name}
 # these are not supposed to be distributed
 
-cp -pr dist/Lib $RPM_BUILD_ROOT%{_datadir}/%{name}
-cp -pr dist/Tools $RPM_BUILD_ROOT%{_datadir}/%{name}
+cp -pr dist/Lib %{buildroot}%{_datadir}/%{name}
+cp -pr dist/Tools %{buildroot}%{_datadir}/%{name}
 # demo
-cp -pr dist/Demo $RPM_BUILD_ROOT%{_datadir}/%{name}
+cp -pr dist/Demo %{buildroot}%{_datadir}/%{name}
 
 
 # registry
-install -m 644 registry $RPM_BUILD_ROOT%{_datadir}/%{name}
+install -m 644 registry %{buildroot}%{_datadir}/%{name}
 # scripts
-install -d $RPM_BUILD_ROOT%{_bindir}
+install -d %{buildroot}%{_bindir}
 
-cat > $RPM_BUILD_ROOT%{_bindir}/%{name} << EOF
+cat > %{buildroot}%{_bindir}/%{name} << EOF
 #!/bin/sh
 #
 # %{name} script
@@ -199,7 +199,7 @@ set_options \$BASE_OPTIONS
 run "\$@"
 EOF
 
-cat > $RPM_BUILD_ROOT%{_bindir}/%{name}c << EOF
+cat > %{buildroot}%{_bindir}/%{name}c << EOF
 #!/bin/sh
 #
 # %{name}c script
