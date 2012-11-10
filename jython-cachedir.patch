@@ -1,0 +1,28 @@
+--- jython-2.2.1/src/org/python/core/PySystemState.java.orig	2007-10-13 20:44:01.000000000 +0200
++++ jython-2.2.1/src/org/python/core/PySystemState.java	2009-01-11 13:33:48.000000000 +0100
+@@ -370,8 +370,8 @@
+             }
+             try {
+                 addRegistryFile(new File(prefix, "registry"));
+-                File homeFile = new File(registry.getProperty("user.home"),
+-                                         ".jython");
++                File homeFile = new File(new File(registry.getProperty("user.home"),
++                                         ".jython"), "registry");
+                 addRegistryFile(homeFile);
+             } catch (Exception exc) {
+             }
+@@ -555,7 +555,13 @@
+         }
+         cachedir = new File(props.getProperty(PYTHON_CACHEDIR, CACHEDIR_DEFAULT_NAME));
+         if (!cachedir.isAbsolute()) {
+-            cachedir = new File(PySystemState.prefix, cachedir.getPath());
++            File jythondir = new File(System.getProperty("user.home"), ".jython");
++
++            if (!jythondir.isDirectory()) {
++                jythondir.mkdirs();
++            }
++
++            cachedir = new File(jythondir, cachedir.getPath());
+         }
+     }
+ 

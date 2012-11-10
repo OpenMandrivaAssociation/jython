@@ -1,0 +1,13 @@
+--- jython/build.xml.orig	2007-03-12 03:58:28.000000000 +0100
++++ jython/build.xml	2007-03-12 03:58:40.000000000 +0100
+@@ -576,10 +576,6 @@
+             />
+         </copy>
+ 
+-        <!-- copy the CPython license -->
+-        <echo>copy CPython LICENSE from ${svn.checkout.dir}/python</echo>
+-        <copy file="${svn.checkout.dir}/python/LICENSE" tofile="${dist.dir}/LICENSE_CPython.txt" preservelastmodified="true" />
+-
+         <!-- sources: todir has to correspond with installer/**/JarInstaller.java -->
+         <echo>copy sources from ${jython.base.dir}</echo>
+         <copy todir="${dist.dir}/src/java" preservelastmodified="true">
