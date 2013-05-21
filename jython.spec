@@ -32,22 +32,20 @@
 %define	pyxml_version	0.8.4
 %define	section		free
 
+Summary:	Java source interpreter
 Name:		jython
 Version:	2.2.1
 Release:	1
-Summary:	Java source interpreter
+Group:		Development/Java
 License:	Modified CNRI Open Source License
-URL:		http://www.jython.org/
+Url:		http://www.jython.org/
 # svn export https://jython.svn.sourceforge.net/svnroot/jython/tags/Release_2_2_1/jython jython-2.2
 Source0:	%{name}-%{version}.tar.bz2
 Patch0:		%{name}-cachedir.patch
 Patch1:		%{name}-no-copy-python.patch
 Patch2:		%{name}-nofullbuildpath.patch
-Requires:	jline
-Requires:	jpackage-utils >= 0:1.6
-Requires:	jakarta-oro
-Requires:	libreadline-java
-Requires:	servlet
+BuildArch:	noarch
+BuildRequires:	java-devel
 BuildRequires:	java-rpmbuild
 BuildRequires:	ant >= 0:1.6
 BuildRequires:	ht2html
@@ -61,11 +59,11 @@ BuildRequires:	python
 # FIXME: Keeping internal PyXML for now
 #BuildRequires:	PyXML >= 0:%{pyxml_version}
 BuildRequires:	servlet
-Group:		Development/Java
-#Distribution:	JPackage
-#Vendor:	JPackage Project
-BuildArch:	noarch
-BuildRequires:	java-devel
+Requires:	jline
+Requires:	jpackage-utils >= 0:1.6
+Requires:	jakarta-oro
+Requires:	libreadline-java
+Requires:	servlet
 
 %description
 Jython is an implementation of the high-level, dynamic, object-oriented
@@ -95,32 +93,30 @@ Demonstrations and samples for %{name}.
 
 %prep
 %setup -q
-%patch0 -p1
-%patch1 -p1
-%patch2 -p1 -b .nofullbuild~
+%apply_patches
 # remove all binary libs
 %{_bindir}/find . -name "*.jar" | %{_bindir}/xargs %{__rm}
 # remove all SVN files
 #%{_bindir}/find . -type d -name .svn | %{_bindir}/xargs %{__rm} -r
 
-%{__perl} -pi -e 's/execon/apply/g' build.xml
-%{__perl} -pi -e 's/ if="full-build"//g' build.xml
+sed -i -e 's/execon/apply/g' build.xml
+sed -i -e 's/ if="full-build"//g' build.xml
 export CLASSPATH=$(build-classpath mysql-connector-java oro servlet)
 # FIXME: fix jpackage-utils to handle multilib correctly
 export CLASSPATH=$CLASSPATH:%{_libdir}/libreadline-java/libreadline-java.jar
 
 rm -rf org/apache
 
-perl -p -i -e 's|execon|apply|g' build.xml
+sed -i -e 's|execon|apply|g' build.xml
 
 ant \
-  -Dpython.home=%{_bindir} \
-  -Dht2html.dir=%{_datadir}/ht2html \
-  -Dpython.lib=./CPythonLib \
-  -Dpython.exe=%{_bindir}/python \
-  -DPyXmlHome=%{_libdir}/python%pyver \
-  -Dtargetver=1.3 \
-  copy-dist
+	-Dpython.home=%{_bindir} \
+	-Dht2html.dir=%{_datadir}/ht2html \
+	-Dpython.lib=./CPythonLib \
+	-Dpython.exe=%{_bindir}/python \
+	-DPyXmlHome=%{_libdir}/python%pyver \
+	-Dtargetver=1.3 \
+	copy-dist
 
 
 # remove #! from python files
@@ -133,26 +129,26 @@ popd
 
 %install
 # jar
-install -d -m 755 $RPM_BUILD_ROOT%{_javadir}
+install -d -m 755 %{buildroot}%{_javadir}
 install -m 644 dist/%{name}.jar \
-  $RPM_BUILD_ROOT%{_javadir}/%{name}.jar
+  %{buildroot}%{_javadir}/%{name}.jar
 
 # data
-install -d -m 755 $RPM_BUILD_ROOT%{_datadir}/%{name}
+install -d -m 755 %{buildroot}%{_datadir}/%{name}
 # these are not supposed to be distributed
 
-cp -pr dist/Lib $RPM_BUILD_ROOT%{_datadir}/%{name}
-cp -pr dist/Tools $RPM_BUILD_ROOT%{_datadir}/%{name}
+cp -pr dist/Lib %{buildroot}%{_datadir}/%{name}
+cp -pr dist/Tools %{buildroot}%{_datadir}/%{name}
 # demo
-cp -pr dist/Demo $RPM_BUILD_ROOT%{_datadir}/%{name}
+cp -pr dist/Demo %{buildroot}%{_datadir}/%{name}
 
 
 # registry
-install -m 644 registry $RPM_BUILD_ROOT%{_datadir}/%{name}
+install -m 644 registry %{buildroot}%{_datadir}/%{name}
 # scripts
-install -d $RPM_BUILD_ROOT%{_bindir}
+install -d %{buildroot}%{_bindir}
 
-cat > $RPM_BUILD_ROOT%{_bindir}/%{name} << EOF
+cat > %{buildroot}%{_bindir}/%{name} << EOF
 #!/bin/sh
 #
 # %{name} script
@@ -199,7 +195,7 @@ set_options \$BASE_OPTIONS
 run "\$@"
 EOF
 
-cat > $RPM_BUILD_ROOT%{_bindir}/%{name}c << EOF
+cat > %{buildroot}%{_bindir}/%{name}c << EOF
 #!/bin/sh
 #
 # %{name}c script
@@ -221,77 +217,4 @@ EOF
 
 %files demo
 %{_datadir}/%{name}/Demo
-
-
-%changelog
-* Wed May 11 2011 Per Øyvind Karlsen <peroyvind@mandriva.org> 2.2.1-1
-+ Revision: 673543
-- drop manuals
-- sync with jpackage
-
-* Sun Jan 11 2009 Funda Wang <fwang@mandriva.org> 0:2.2.1-0.0.2mdv2009.1
-+ Revision: 328264
-- rediff cachedir patch
-
-* Tue Feb 05 2008 Alexander Kurtakov <akurtakov@mandriva.org> 0:2.2.1-0.0.2mdv2009.0
-+ Revision: 162848
-- remove old source
-
-  + Olivier Blin <oblin@mandriva.com>
-    - restore BuildRoot
-
-  + Thierry Vignaud <tv@mandriva.org>
-    - kill re-definition of %%buildroot on Pixel's request
-
-* Sun Dec 16 2007 Anssi Hannula <anssi@mandriva.org> 0:2.2.1-0.0.2mdv2008.1
-+ Revision: 120813
-- buildrequires java-rpmbuild
-
-* Sat Oct 27 2007 David Walluck <walluck@mandriva.org> 0:2.2.1-0.0.1mdv2008.1
-+ Revision: 102516
-- 2.2.1
-
-* Sat Sep 15 2007 Anssi Hannula <anssi@mandriva.org> 0:2.2-1.0.2mdv2008.0
-+ Revision: 87455
-- rebuild to filter out autorequires of GCJ AOT objects
-- remove unnecessary Requires(post) on java-gcj-compat
-
-* Wed Aug 29 2007 David Walluck <walluck@mandriva.org> 0:2.2-1.0.1mdv2008.0
-+ Revision: 74773
-- 2.2
-- fix javaccHome
-- fix BASE_JARS in jython script
-- 2.2rc1 (SVN r3280)
-- (Build)Requires: jline
-- Requires: libreadline-java
-- fix python.home (again)
-- use python.console=org.python.util.JLineConsole by default
-
-
-* Mon Mar 19 2007 David Walluck <walluck@mandriva.org> 2.2-0.b1.1.5mdv2007.1
-+ Revision: 146808
-- correct python.home to fix loading udner gij
-
-* Mon Mar 12 2007 David Walluck <walluck@mandriva.org> 0:2.2-0.b1.1.4mdv2007.1
-+ Revision: 141589
-- add support for readline and editline
-- use SVN (CVS is deprecated)
-- fix tarball
-- Import jython
-
-* Sun Mar 11 2007 David Walluck <walluck@mandriva.org> 0:2.2-0.b1.1.1mdv2007.1
-- 2.2b1 (CVS 20070208)
-
-* Tue Feb 27 2007 Ralph Apel <r.apel at r-apel.de> - 0:2.2-0.a0.4jpp
-- Add gcj_support option
-- Assure optionality of mysql-connector-java
-- Reactivate ht2html BR
-
-* Wed Jun 21 2006 Ralph Apel <r.apel at r-apel.de> - 0:2.2-0.a0.3jpp
-- First JPP-1.7 release
-- Oracle JDBC not required, MySQL JDBC optional
-
-* Tue Aug 24 2004 Randy Watler <rwatler at finali.com> - 0:2.2-0.a0.2jpp
-- Rebuild with ant-1.6.2
-- Allow build use of python >= 2.3 to generate docs since 2.2 libraries included
 
