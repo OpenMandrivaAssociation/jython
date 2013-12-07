@@ -35,7 +35,7 @@
 Summary:	Java source interpreter
 Name:		jython
 Version:	2.2.1
-Release:	2
+Release:	3
 Group:		Development/Java
 License:	Modified CNRI Open Source License
 Url:		http://www.jython.org/
