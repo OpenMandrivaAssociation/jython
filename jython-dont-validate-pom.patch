@@ -1,0 +1,12 @@
+diff -Naur jython-svn-Release_2_2_1/maven/build.xml jython-svn-Release_2_2_1-work/maven/build.xml
+--- jython-svn-Release_2_2_1/maven/build.xml	2007-03-26 22:02:00.000000000 +0200
++++ jython-svn-Release_2_2_1-work/maven/build.xml	2012-06-19 19:06:07.964999996 +0200
+@@ -114,7 +114,7 @@
+ 	<!-- 
+ 		Performs Maven build staging
+ 	-->
+-	<target name="stage" depends="validate-pom">
++	<target name="stage">
+ 		<property name="stage" value="${build}/"/>
+ 		<mkdir dir="${stage}"/>
+ 		
