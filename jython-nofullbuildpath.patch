@@ -28,3 +28,12 @@ diff -ur jython-svn-Release_2_2beta1/build.xml jython-svn-Release_2_2beta1.patch
          <!-- Misc files -->
          <echo>copy misc files from ${jython.base.dir}</echo>
          <copy todir="${dist.dir}" preservelastmodified="true">
+@@ -578,7 +578,7 @@
+ 
+         <!-- copy the CPython license -->
+         <echo>copy CPython LICENSE from ${svn.checkout.dir}/python</echo>
+-        <copy file="${svn.checkout.dir}/python/LICENSE" tofile="${dist.dir}/LICENSE_CPython.txt" preservelastmodified="true" />
++        <copy file="LICENSE.txt" tofile="${dist.dir}/LICENSE_CPython.txt" preservelastmodified="true" />
+ 
+         <!-- sources: todir has to correspond with installer/**/JarInstaller.java -->
+         <echo>copy sources from ${jython.base.dir}</echo>
