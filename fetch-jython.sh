@@ -1,35 +1,17 @@
 #!/bin/sh
 
-# Generate a source drop for jython from SVN
+# Generate a source drop for jython
+# Usage: sh fetch-jython.sh <TAG>
 
-# Usage message
-usage="usage: $0 <project_name> <svn_root> <svn_tag>"
+TAG=$1
 
-project_name=$1
-svn_root=$2
-svn_tag=$3
+rm -rf jython-$TAG
+rm -rf jython-$TAG.tar.xz
+hg clone -r "$TAG" http://hg.python.org/jython jython-$TAG
 
-# Ensure we got all of the variables
-if [ "x$project_name"x = "xx" ]
-then
-        echo >&2 "$usage"
-        exit 1
-fi
+find jython-$TAG -type f -a -name *.jar -delete
+find jython-$TAG -type f -a -name *.class -delete
+rm -rf jython-$TAG/.hg
 
-if [ "x$svn_root"x = "xx" ]
-then
-        echo >&2 "$usage"
-        exit 1
-fi
-
-if [ "x$svn_tag"x = "xx" ]
-then
-        echo >&2 "$usage"
-        exit 1
-fi
-
-mkdir -p temp && cd temp
-
-svn export --username guest --password "" $svn_root/$project_name/tags/$svn_tag
-mv $svn_tag/$project_name $project_name-svn-$svn_tag
-tar jcf $project_name-fetched-src-$svn_tag.tar.bz2 $project_name-svn-$svn_tag
+tar Jcf jython-$TAG.tar.xz jython-$TAG
+rm -rf jython-$TAG

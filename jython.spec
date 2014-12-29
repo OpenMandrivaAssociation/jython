@@ -1,48 +1,62 @@
 %{?_javapackages_macros:%_javapackages_macros}
-%{expand: %%define pyver %(python -c 'import sys;print(sys.version[0:3])')}
+%{expand: %%global pyver %(python -c 'import sys;print(sys.version[0:3])')}
 
 %global cpython_version    %{pyver}
-%global svn_tag            Release_2_2_1
+%global scm_tag            v2.7b3
 %global _python_bytecompile_errors_terminate_build 0
 
 Name:                      jython
-Version:                   2.2.1
-Release:                   14.0%{?dist}
+Version:                   2.7
+Release:                   0.2.b3.1
 Summary:                   A Java implementation of the Python language
+Group:                     Development/Java
 License:                   ASL 1.1 and BSD and CNRI and JPython and Python
 URL:                       http://www.jython.org/
+
 # Use the included fetch-jython.sh script to generate the source drop
-# for jython 2.2.1
-# sh fetch-jython.sh \
-#   jython https://jython.svn.sourceforge.net/svnroot Release_2_2_1
-#
-Source0:                   %{name}-fetched-src-%{svn_tag}.tar.bz2
-Source2:                   fetch-%{name}.sh
-Patch0:                    %{name}-cachedir.patch
-# Make javadoc and copy-full tasks not depend upon "full-build"
-# Also, copy python's license from source directory and not
-# ${python.home}
-Patch1:                    %{name}-nofullbuildpath.patch
-Patch2:                    jython-dont-validate-pom.patch
-Requires:                  jpackage-utils
-Requires:                  jakarta-oro
-Requires:                  servlet
+# Usage: sh fetch-jython.sh %%{scm_tag}
+Source0:                   jython-%{scm_tag}.tar.xz
+Source1:                   fetch-jython.sh
+
+# Make the cache dir be in the user's home
+Patch0:                    jython-cachedir.patch
+# Avoid rebuilding and validating poms when installing maven stuff and don't gpg sign
+Patch1:                    jython-dont-validate-pom.patch
+# This addresses CVE-2013-2027 (http://bugs.jython.org/msg8004)
+Patch2:                    jython-CVE-2013-2027.patch
+
 Requires:                  python >= %{cpython_version}
 Requires:                  libreadline-java >= 0.8.0-16
-Requires:                  mysql-connector-java
+Requires:                  antlr32-java
+Requires:                  apache-commons-compress
+Requires:                  guava
+Requires:                  objectweb-asm
+Requires:                  jnr-constants
+Requires:                  jnr-ffi
+Requires:                  jnr-netdb
+Requires:                  jnr-posix
+Requires:                  jffi
+Requires:                  jline1
+Requires:                  icu4j
+Requires:                  netty
+BuildRequires:             java-devel >= 1:1.7.0
+# We build with ant, but install with maven
+BuildRequires:             javapackages-local
 BuildRequires:             ant
-BuildRequires:             libreadline-java >= 0.8.0-16
-BuildRequires:             mysql-connector-java
-BuildRequires:             jakarta-oro
+BuildRequires:             junit
+BuildRequires:             glassfish-servlet-api
 BuildRequires:             python >= %{cpython_version}
-BuildRequires:             servlet
-BuildRequires:             java-devel >= 1:1.6.0
-BuildRequires:             jpackage-utils
-%if 0%{?fedora}
-%else
-BuildRequires:             ht2html
-%endif
-Requires:                  java >= 1:1.6.0
+BuildRequires:             libreadline-java >= 0.8.0-16
+BuildRequires:             antlr32-tool
+BuildRequires:             apache-commons-compress
+BuildRequires:             guava
+BuildRequires:             objectweb-asm
+BuildRequires:             jnr-constants
+BuildRequires:             jnr-ffi
+BuildRequires:             jnr-netdb
+BuildRequires:             jnr-posix
+BuildRequires:             jffi
+BuildRequires:             jline1
 
 BuildArch:                 noarch
 
@@ -67,13 +81,11 @@ mix the two languages both during development and in shipping products.
 %package javadoc
 Summary:           Javadoc for %{name}
 
-
 %description javadoc
 API documentation for %{name}.
 
 %package manual
 Summary:           Manual for %{name}
-
 
 %description manual
 Usage documentation for %{name}.
@@ -82,74 +94,56 @@ Usage documentation for %{name}.
 Summary:           Demo for %{name}
 Requires:          %{name} = %{version}-%{release}
 
-
 %description demo
 Demonstrations and samples for %{name}.
 
 %prep
-%setup -q -n %{name}-svn-%{svn_tag}
-%patch0 -p1
-%patch1 -p1
-%patch2 -p1
+%setup -q -n jython-%{scm_tag}
+%patch0
+%patch1
+%patch2
+
+# Set correct encoding for source
+sed -i -e '476i encoding="UTF-8"' -e '715i Encoding="UTF-8"' build.xml
 
 %build
-export CLASSPATH=$(build-classpath mysql-connector-java oro servlet)
-# FIXME: fix jpackage-utils to handle multilib correctly
-export CLASSPATH=$CLASSPATH:%{_libdir}/libreadline-java/libreadline-java.jar
+build-jar-repository -s extlibs \
+  antlr32/antlr antlr32/antlr-runtime stringtemplate antlr \
+  jnr-constants jnr-ffi jnr-netdb jnr-posix jffi \
+  libreadline-java/libreadline-java jline1/jline-1 \
+  glassfish-servlet-api guava objectweb-asm/asm objectweb-asm/asm-commons objectweb-asm/asm-util \
+  commons-compress junit
 
-rm -rf org/apache
+ant -v \
+  -Djython.dev.jar=jython.jar \
+  -Dhas.repositories.connection=false \
+  developer-build javadoc
 
-perl -p -i -e 's|execon|apply|g' build.xml
+# remove shebangs from python files
+find dist -type f -name '*.py' | xargs sed -i "s:#!\s*/usr.*::"
 
-ant \
-  -Dpython.home=%{_bindir} \
-  -Dht2html.dir=%{_datadir}/ht2html \
-  -Dpython.lib=./CPythonLib \
-  -Dpython.exe=%{_bindir}/python \
-  copy-dist
-
-
-# remove #! from python files
-pushd dist
-  for f in `find . -name '*.py'`
-  do
-    sed --in-place  "s:#!\s*/usr.*::" $f
-  done
-popd
-
-# Create Maven POM's
 pushd maven
-  ant -Dproject.version=%{version} install
+# generate maven pom
+ant -Dproject.version=%{version} install
 popd
+
+# request maven artifact installation
+%mvn_artifact build/maven/jython-%{version}.pom dist/jython.jar
+%mvn_alias org.python:jython org.python:jython-standalone
 
 %install
-# jar
-install -d -m 755 $RPM_BUILD_ROOT%{_javadir}
-install -m 644 dist/%{name}.jar \
-  $RPM_BUILD_ROOT%{_javadir}/%{name}.jar
+# install maven artifacts
+%mvn_install -J dist/Doc/javadoc
 
-# javadoc
-install -d -m 755 $RPM_BUILD_ROOT%{_javadocdir}/%{name}
-cp -pr dist/Doc/javadoc/* $RPM_BUILD_ROOT%{_javadocdir}/%{name}
 # data
 install -d -m 755 $RPM_BUILD_ROOT%{_datadir}/%{name}
 # these are not supposed to be distributed
 find dist/Lib -type d -name test | xargs rm -rf
-
 cp -pr dist/Lib $RPM_BUILD_ROOT%{_datadir}/%{name}
-cp -pr dist/Tools $RPM_BUILD_ROOT%{_datadir}/%{name}
 # demo
-cp -pr dist/Demo $RPM_BUILD_ROOT%{_datadir}/%{name}
+cp -pr Demo $RPM_BUILD_ROOT%{_datadir}/%{name}
 # manual
-rm -rf dist/Doc/javadoc
-mv dist/Doc %{name}-manual-%{version}
-
-# pom
-install -d -m 755 $RPM_BUILD_ROOT%{_mavenpomdir}
-install -pm 644 build/maven/pom.xml $RPM_BUILD_ROOT%{_mavenpomdir}/JPP-%{name}.pom
-
-# depmap
-%add_maven_depmap JPP-%{name}.pom %{name}.jar -a "org.python:jython-standalone"
+cp -pr Doc $RPM_BUILD_ROOT%{_datadir}/%{name}
 
 # registry
 install -m 644 registry $RPM_BUILD_ROOT%{_datadir}/%{name}
@@ -158,7 +152,6 @@ install -d $RPM_BUILD_ROOT%{_bindir}
 
 cat > $RPM_BUILD_ROOT%{_bindir}/%{name} << EOF
 #!/bin/sh
-#
 
 # Source functions library
 . %{_datadir}/java-utils/java-functions
@@ -175,16 +168,16 @@ fi
 
 # Arch-specific location of dependency
 case \$(uname -m) in
-   x86_64 | ia64 | s390x | ppc64 | sparc64 )
+   x86_64 | ia64 | s390x | ppc64 | ppc64le | sparc64 | aarch64 )
       JYTHONLIBDIR="/usr/lib64" ;;
    * )
       JYTHONLIBDIR="/usr/lib" ;;
 esac
 
 # Configuration
-MAIN_CLASS=org.python.util.%{name}
-BASE_FLAGS=-Dpython.home=%{_datadir}/%{name}
-BASE_JARS="%{name} oro servlet mysql-connector-java"
+MAIN_CLASS=org.python.util.jython
+BASE_FLAGS=-Dpython.home=%{_datadir}/jython
+BASE_JARS="jython/jython guava jnr-constants jnr-ffi jnr-netdb jnr-posix jffi libreadline-java/libreadline-java jline1/jline-1 antlr3-runtime objectweb-asm/asm objectweb-asm/asm-commons objectweb-asm/asm-util commons-compress icu4j netty/netty-buffer netty/netty-codec netty/netty-common netty/netty-handler netty/netty-transport"
 
 BASE_FLAGS="\$BASE_FLAGS -Dpython.console=org.python.util.ReadlineConsole"
 BASE_FLAGS="\$BASE_FLAGS -Djava.library.path=\$JYTHONLIBDIR/libreadline-java"
@@ -192,7 +185,6 @@ BASE_FLAGS="\$BASE_FLAGS -Dpython.console.readlinelib=Editline"
 
 # Set parameters
 set_jvm
-CLASSPATH=\$CLASSPATH:\$JYTHONLIBDIR/libreadline-java/libreadline-java.jar
 set_classpath \$BASE_JARS
 set_flags \$BASE_FLAGS
 set_options \$BASE_OPTIONS
@@ -201,42 +193,57 @@ set_options \$BASE_OPTIONS
 run "\$@"
 EOF
 
-cat > $RPM_BUILD_ROOT%{_bindir}/%{name}c << EOF
-#!/bin/sh
-#
-
-%{_bindir}/%{name} %{_datadir}/%{name}/Tools/%{name}c/%{name}c.py "\$@"
-EOF
-
-%files
-%defattr(-,root,root)
+%files -f .mfiles
 %doc ACKNOWLEDGMENTS NEWS LICENSE.txt README.txt
 %attr(0755,root,root) %{_bindir}/%{name}
-%attr(0755,root,root) %{_bindir}/%{name}c
-%{_javadir}/*
+%dir %{_datadir}/java/%{name}
 %dir %{_datadir}/%{name}
 %{_datadir}/%{name}/Lib
-%{_datadir}/%{name}/Tools
 %{_datadir}/%{name}/registry
-%{_mavenpomdir}/*
-%{_mavendepmapfragdir}/*
 
-%files javadoc
-%defattr(-,root,root)
+%files javadoc -f .mfiles-javadoc
 %doc LICENSE.txt
-%doc %{_javadocdir}/%{name}
 
 %files manual
-%defattr(-,root,root)
-%doc LICENSE.txt README.txt
-%doc %{name}-manual-%{version}
+%doc LICENSE.txt
+%{_datadir}/%{name}/Doc
 
 %files demo
-%defattr(-,root,root)
 %doc ACKNOWLEDGMENTS NEWS LICENSE.txt README.txt
-%doc %{_datadir}/%{name}/Demo
+%{_datadir}/%{name}/Demo
 
 %changelog
+* Mon Nov 03 2014 Mat Booth <mat.booth@redhat.com> - 2.7-0.2.b3
+- Add missing runtime requirements on icu4j and netty
+- Fixes: rhbz#1158890
+
+* Thu Jul 31 2014 Mat Booth <mat.booth@redhat.com> - 2.7-0.1.b3
+- Update to latest upstream release
+- Drop no longer needed patches
+- Add aarch64 support to launcher script
+
+* Sun Jun 08 2014 Fedora Release Engineering <rel-eng@lists.fedoraproject.org> - 2.5.3-4
+- Rebuilt for https://fedoraproject.org/wiki/Fedora_21_Mass_Rebuild
+
+* Mon Jun 02 2014 Mat Booth <mat.booth@redhat.com> - 2.5.3-3
+- Fix BRs for mvn_install macro usage
+
+* Mon Jun 02 2014 Mat Booth <mat.booth@redhat.com> - 2.5.3-2
+- Port to objectweb-asm 5
+
+* Wed May 28 2014 Mat Booth <mat.booth@redhat.com> - 2.5.3-1
+- Updated to latest stable upstream release 2.5.3
+- Backported patches for guava and jnr support
+- Updated for latest maven packaging guidelines
+- Fixed BR/Rs for updates to dependencies
+
+* Thu Mar 6 2014 Alexander Kurtakov <akurtako@redhat.com> 2.2.1-16
+- Fix fetch script.
+- R java-headless.
+
+* Thu Mar 06 2014 Lubomir Rintel (GoodData) <lubo.rintel@gooddata.com> 2.2.1-15
+- Fix CVE-2013-2027
+
 * Mon Aug 12 2013 akurtakov <akurtakov@localhost.localdomain> 2.2.1-14
 - PyXML is dead - bug#992651 .
 
