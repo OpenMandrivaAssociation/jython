@@ -1,2 +1,5 @@
-sources:
+removed_sources:
   jython-v2.7b3.tar.xz: 540d343298928f83f05213935705dd4710dcc37e
+sources:
+  jython-v2.7.1.tar.xz: ac14bf8b19ee2e5a2e79d207da52f05f5a6e6329
+

@@ -1,0 +1,37 @@
+--- src/shell/jython.orig	2017-01-26 12:01:25.475209982 +0000
++++ src/shell/jython	2017-01-26 12:00:52.178558518 +0000
+@@ -74,17 +74,8 @@
+ 
+ CP_DELIMITER=":"
+ 
+-CP=$JYTHON_HOME/jython-dev.jar
+-
+-if [ -f "$CP" ] ; then
+-  # add necessary jars for command-line execution
+-  for j in "$JYTHON_HOME"/javalib/*.jar; do
+-    if [ "$CP" ]; then
+-      CP="$CP$CP_DELIMITER$j"
+-    else
+-      CP="$j"
+-    fi
+-  done
++if [ -f "$JYTHON_HOME/jython-dev.jar" ] ; then
++  CP=$JYTHON_HOME/jython-dev.jar
+ elif [ ! -f "$JYTHON_HOME"/jython.jar ] ; then
+   echo "$0: $JYTHON_HOME contains neither jython-dev.jar nor jython.jar." >&2
+   echo "Try running this script from the 'bin' directory of an installed Jython or " >&2
+@@ -93,6 +84,14 @@
+ else
+   CP=$JYTHON_HOME/jython.jar
+ fi
++  # add necessary jars for command-line execution
++  for j in "$JYTHON_HOME"/javalib/*.jar; do
++    if [ "$CP" ]; then
++      CP="$CP$CP_DELIMITER$j"
++    else
++      CP="$j"
++    fi
++  done
+ 
+ if $cygwin; then
+   # switch delimiter only after building a Unix style $CP
