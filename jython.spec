@@ -10,6 +10,7 @@ Name:                      jython
 Version:                   2.7.1
 Release:                   3.1
 Summary:                   A Java implementation of the Python language
+Group:                     Development/Java
 License:                   ASL 1.1 and BSD and CNRI and JPython and Python
 URL:                       http://www.jython.org/
 
