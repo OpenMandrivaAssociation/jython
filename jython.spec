@@ -1,13 +1,14 @@
 %{?_javapackages_macros:%_javapackages_macros}
-%{expand: %%global pyver %(python -c 'import sys;print(sys.version[0:3])')}
+%global cpython_version    2.7
+%global scm_tag            v2.7.1
 
-%global cpython_version    %{pyver}
-%global scm_tag            v2.7b3
-%global _python_bytecompile_errors_terminate_build 0
+# Turn off the brp-python-bytecompile script
+# We generate JVM bytecode instead
+%global __os_install_post %(echo '%{__os_install_post}' | sed -e 's!/usr/lib[^[:space:]]*/brp-python-bytecompile[[:space:]].*$!!g')
 
 Name:                      jython
-Version:                   2.7
-Release:                   0.2.b3.1
+Version:                   2.7.1
+Release:                   3.1
 Summary:                   A Java implementation of the Python language
 Group:                     Development/Java
 License:                   ASL 1.1 and BSD and CNRI and JPython and Python
@@ -22,41 +23,58 @@ Source1:                   fetch-jython.sh
 Patch0:                    jython-cachedir.patch
 # Avoid rebuilding and validating poms when installing maven stuff and don't gpg sign
 Patch1:                    jython-dont-validate-pom.patch
-# This addresses CVE-2013-2027 (http://bugs.jython.org/msg8004)
-Patch2:                    jython-CVE-2013-2027.patch
+# Dep for this feature is not yet in Fedora
+Patch2:                    jython-no-carrotsearch-sizeof.patch
+# Tweak launcher script
+Patch3:                    jython-launcher.patch
+# Fix failure with "import multiprocessing"
+Patch4:                    jython-fix-multiprocessing.patch
+# Fix tty detection
+Patch5:                    jython-fix-tty-detection.patch
 
 Requires:                  python >= %{cpython_version}
-Requires:                  libreadline-java >= 0.8.0-16
 Requires:                  antlr32-java
 Requires:                  apache-commons-compress
+Requires:                  bouncycastle
+Requires:                  bouncycastle-pkix
 Requires:                  guava
 Requires:                  objectweb-asm
+Requires:                  jctools >= 2.0.2
 Requires:                  jnr-constants
 Requires:                  jnr-ffi
 Requires:                  jnr-netdb
 Requires:                  jnr-posix
 Requires:                  jffi
-Requires:                  jline1
+Requires:                  jffi-native
+Requires:                  jline
+Requires:                  jansi
 Requires:                  icu4j
-Requires:                  netty
-BuildRequires:             java-devel >= 1:1.7.0
+Requires:                  netty >= 4.1.13
+Requires:                  xerces-j2
 # We build with ant, but install with maven
 BuildRequires:             javapackages-local
 BuildRequires:             ant
-BuildRequires:             junit
+BuildRequires:             ant-junit
 BuildRequires:             glassfish-servlet-api
 BuildRequires:             python >= %{cpython_version}
-BuildRequires:             libreadline-java >= 0.8.0-16
 BuildRequires:             antlr32-tool
 BuildRequires:             apache-commons-compress
+BuildRequires:             bouncycastle
+BuildRequires:             bouncycastle-pkix
 BuildRequires:             guava
 BuildRequires:             objectweb-asm
+BuildRequires:             jctools >= 2.0.2
 BuildRequires:             jnr-constants
 BuildRequires:             jnr-ffi
 BuildRequires:             jnr-netdb
 BuildRequires:             jnr-posix
 BuildRequires:             jffi
-BuildRequires:             jline1
+BuildRequires:             jffi-native
+BuildRequires:             jline
+BuildRequires:             jansi
+BuildRequires:             icu4j
+BuildRequires:             netty >= 4.1.13
+BuildRequires:             xerces-j2
 
 BuildArch:                 noarch
 
@@ -80,15 +98,12 @@ mix the two languages both during development and in shipping products.
 
 %package javadoc
 Summary:           Javadoc for %{name}
+# Obsoletes/Provides added in F25
+Obsoletes:         %{name}-manual = %{version}-%{release}
+Provides:          %{name}-manual < %{version}-%{release}
 
 %description javadoc
 API documentation for %{name}.
-
-%package manual
-Summary:           Manual for %{name}
-
-%description manual
-Usage documentation for %{name}.
 
 %package demo
 Summary:           Demo for %{name}
@@ -99,25 +114,36 @@ Demonstrations and samples for %{name}.
 
 %prep
 %setup -q -n jython-%{scm_tag}
+%patch2 -R -p1
 %patch0
 %patch1
-%patch2
+%patch3
+%patch4 -p1
+%patch5
 
-# Set correct encoding for source
-sed -i -e '476i encoding="UTF-8"' -e '715i Encoding="UTF-8"' build.xml
+rm -rf extlibs/*
+
+# Disable doclint to fix javadoc generation
+sed -i -e '/<javadoc/a additionalparam="-Xdoclint:none"' build.xml
+
+# Broader guava compatibility
+sed -i -e 's/CharMatcher\.ascii()/CharMatcher.ASCII/' \
+  src/org/python/core/PyUnicode.java \
+  src/org/python/core/PyBaseCode.java \
+  src/org/python/core/Py.java
 
 %build
-build-jar-repository -s extlibs \
+# Symlink build-time libs
+build-jar-repository -p -s extlibs \
   antlr32/antlr antlr32/antlr-runtime stringtemplate antlr \
-  jnr-constants jnr-ffi jnr-netdb jnr-posix jffi \
-  libreadline-java/libreadline-java jline1/jline-1 \
+  jffi jffi-native jnr-constants jnr-ffi jnr-netdb jnr-posix jline/jline jansi/jansi icu4j/icu4j \
   glassfish-servlet-api guava objectweb-asm/asm objectweb-asm/asm-commons objectweb-asm/asm-util \
-  commons-compress junit
+  commons-compress junit hamcrest/core
 
-ant -v \
+ant \
   -Djython.dev.jar=jython.jar \
   -Dhas.repositories.connection=false \
-  developer-build javadoc
+  javatest javadoc
 
 # remove shebangs from python files
 find dist -type f -name '*.py' | xargs sed -i "s:#!\s*/usr.*::"
@@ -127,6 +153,14 @@ pushd maven
 ant -Dproject.version=%{version} install
 popd
 
+# Symlink run-time libs
+rm dist/javalib/*.jar
+build-jar-repository -p -s dist/javalib antlr32/antlr-runtime-3.2 \
+  objectweb-asm/asm objectweb-asm/asm-commons objectweb-asm/asm-util guava icu4j/icu4j \
+  jffi jffi-native jnr-constants jnr-ffi jnr-netdb jnr-posix jline/jline jansi/jansi \
+  netty/netty-buffer netty/netty-codec netty/netty-common netty/netty-handler netty/netty-resolver netty/netty-transport \
+  jctools/jctools-core apache-commons-compress bcprov bcpkix xerces-j2
+
 # request maven artifact installation
 %mvn_artifact build/maven/jython-%{version}.pom dist/jython.jar
 %mvn_alias org.python:jython org.python:jython-standalone
@@ -135,84 +169,101 @@ popd
 # install maven artifacts
 %mvn_install -J dist/Doc/javadoc
 
-# data
+# jython home dir
 install -d -m 755 $RPM_BUILD_ROOT%{_datadir}/%{name}
-# these are not supposed to be distributed
-find dist/Lib -type d -name test | xargs rm -rf
+ln -s %{_javadir}/%{name}/jython.jar $RPM_BUILD_ROOT%{_datadir}/%{name}
+cp -pr dist/javalib $RPM_BUILD_ROOT%{_datadir}/%{name}
+rm dist/bin/jython_regrtest.bat
+cp -pr dist/bin $RPM_BUILD_ROOT%{_datadir}/%{name}
+install -m 644 dist/registry $RPM_BUILD_ROOT%{_datadir}/%{name}
+# libs without tests
+rm -rf dist/Lib/{distutils/tests,email/test,json/tests,test,unittest/test}
 cp -pr dist/Lib $RPM_BUILD_ROOT%{_datadir}/%{name}
 # demo
 cp -pr Demo $RPM_BUILD_ROOT%{_datadir}/%{name}
-# manual
-cp -pr Doc $RPM_BUILD_ROOT%{_datadir}/%{name}
+# javadoc
+install -d -m 755 $RPM_BUILD_ROOT%{_datadir}/%{name}/Doc
+ln -s %{_javadocdir}/%{name} $RPM_BUILD_ROOT%{_datadir}/%{name}/Doc/javadoc
 
-# registry
-install -m 644 registry $RPM_BUILD_ROOT%{_datadir}/%{name}
 # scripts
 install -d $RPM_BUILD_ROOT%{_bindir}
-
-cat > $RPM_BUILD_ROOT%{_bindir}/%{name} << EOF
-#!/bin/sh
-
-# Source functions library
-. %{_datadir}/java-utils/java-functions
-
-# Source system prefs
-if [ -f %{_sysconfdir}/%{name}.conf ] ; then
-  . %{_sysconfdir}/%{name}.conf
-fi
-
-# Source user prefs
-if [ -f \$HOME/.%{name}rc ] ; then
-  . \$HOME/.%{name}rc
-fi
-
-# Arch-specific location of dependency
-case \$(uname -m) in
-   x86_64 | ia64 | s390x | ppc64 | ppc64le | sparc64 | aarch64 )
-      JYTHONLIBDIR="/usr/lib64" ;;
-   * )
-      JYTHONLIBDIR="/usr/lib" ;;
-esac
-
-# Configuration
-MAIN_CLASS=org.python.util.jython
-BASE_FLAGS=-Dpython.home=%{_datadir}/jython
-BASE_JARS="jython/jython guava jnr-constants jnr-ffi jnr-netdb jnr-posix jffi libreadline-java/libreadline-java jline1/jline-1 antlr3-runtime objectweb-asm/asm objectweb-asm/asm-commons objectweb-asm/asm-util commons-compress icu4j netty/netty-buffer netty/netty-codec netty/netty-common netty/netty-handler netty/netty-transport"
-
-BASE_FLAGS="\$BASE_FLAGS -Dpython.console=org.python.util.ReadlineConsole"
-BASE_FLAGS="\$BASE_FLAGS -Djava.library.path=\$JYTHONLIBDIR/libreadline-java"
-BASE_FLAGS="\$BASE_FLAGS -Dpython.console.readlinelib=Editline"
-
-# Set parameters
-set_jvm
-set_classpath \$BASE_JARS
-set_flags \$BASE_FLAGS
-set_options \$BASE_OPTIONS
-
-# Let's start
-run "\$@"
-EOF
+ln -s %{_datadir}/%{name}/bin/jython $RPM_BUILD_ROOT%{_bindir}
 
 %files -f .mfiles
-%doc ACKNOWLEDGMENTS NEWS LICENSE.txt README.txt
+%doc ACKNOWLEDGMENTS NEWS README.txt
+%doc LICENSE.txt
 %attr(0755,root,root) %{_bindir}/%{name}
-%dir %{_datadir}/java/%{name}
 %dir %{_datadir}/%{name}
+%{_datadir}/%{name}/bin
+%{_datadir}/%{name}/javalib
+%{_datadir}/%{name}/jython.jar
 %{_datadir}/%{name}/Lib
 %{_datadir}/%{name}/registry
 
 %files javadoc -f .mfiles-javadoc
 %doc LICENSE.txt
-
-%files manual
-%doc LICENSE.txt
 %{_datadir}/%{name}/Doc
 
 %files demo
-%doc ACKNOWLEDGMENTS NEWS LICENSE.txt README.txt
+%doc LICENSE.txt
 %{_datadir}/%{name}/Demo
 
 %changelog
+* Thu Sep 28 2017 Mat Booth <mat.booth@redhat.com> - 2.7.1-3
+- Add missing dep on xerces-j2
+
+* Mon Aug 14 2017 Mat Booth <mat.booth@redhat.com> - 2.7.1-2
+- Add missing runtime dep on commons-compress and bouncycastle
+- Stricter deps on netty and jctools
+
+* Fri Aug 11 2017 Mat Booth <mat.booth@redhat.com> - 2.7.1-1
+- Update to final release of 2.7.1
+- Fix tty detection, rhbz#1373279
+
+* Wed Jul 26 2017 Fedora Release Engineering <releng@fedoraproject.org> - 2.7.1-0.4.b3
+- Rebuilt for https://fedoraproject.org/wiki/Fedora_27_Mass_Rebuild
+
+* Fri Feb 10 2017 Fedora Release Engineering <releng@fedoraproject.org> - 2.7.1-0.3.b3
+- Rebuilt for https://fedoraproject.org/wiki/Fedora_26_Mass_Rebuild
+
+* Thu Jan 26 2017 Mat Booth <mat.booth@redhat.com> - 2.7.1-0.2.b3
+- Use upstream's launcher script and provide a more complete jython_home directory
+  to allow virtualenv to work with jython, rhbz#1373279
+- Also enable unit test suite
+
+* Mon Jun 27 2016 Mat Booth <mat.booth@redhat.com> - 2.7.1-0.1.b3
+- Update to Jython 2.7.1 to get Jython version of lib2to3
+
+* Thu Feb 04 2016 Fedora Release Engineering <releng@fedoraproject.org> - 2.7-3
+- Rebuilt for https://fedoraproject.org/wiki/Fedora_24_Mass_Rebuild
+
+* Wed Jun 17 2015 Fedora Release Engineering <rel-eng@lists.fedoraproject.org> - 2.7-2
+- Rebuilt for https://fedoraproject.org/wiki/Fedora_23_Mass_Rebuild
+
+* Wed May 13 2015 Mat Booth <mat.booth@redhat.com> - 2.7-1
+- Update to final release of jython 2.7.0
+
+* Tue Apr 21 2015 Mat Booth <mat.booth@redhat.com> - 2.7-0.8.rc3
+- Update to release candidate 3
+- Drop upstreamed patch for CVE-2013-1752
+
+* Mon Apr 13 2015 Mat Booth <mat.booth@redhat.com> - 2.7-0.7.rc2
+- Fix CVE-2013-1752 - multiple unbound readline() DoS flaws in python stdlib
+
+* Thu Apr 09 2015 Mat Booth <mat.booth@redhat.com> - 2.7-0.6.rc2
+- BR/R jnr-posix >= 3.0.9
+
+* Thu Apr 09 2015 Mat Booth <mat.booth@redhat.com> - 2.7-0.5.rc2
+- Add hamcrest core to build class path
+
+* Wed Apr 08 2015 Mat Booth <mat.booth@redhat.com> - 2.7-0.4.rc2
+- Update to release candidate 2
+- Drop jline and libreadline in favour of jline 2
+- Resolves: rhbz#1182482 - don't ship windows executables
+
+* Fri Jan 9 2015 Alexander Kurtakov <akurtako@redhat.com> 2.7-0.3.b4
+- Update to beta 4.
+
 * Mon Nov 03 2014 Mat Booth <mat.booth@redhat.com> - 2.7-0.2.b3
 - Add missing runtime requirements on icu4j and netty
 - Fixes: rhbz#1158890
