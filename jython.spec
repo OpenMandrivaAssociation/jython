@@ -8,7 +8,7 @@
 
 Name:                      jython
 Version:                   2.7.1
-Release:                   3.1
+Release:                   3.2
 Summary:                   A Java implementation of the Python language
 Group:                     Development/Java
 License:                   ASL 1.1 and BSD and CNRI and JPython and Python
