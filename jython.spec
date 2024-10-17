@@ -12,7 +12,7 @@ Release:                   3.2
 Summary:                   A Java implementation of the Python language
 Group:                     Development/Java
 License:                   ASL 1.1 and BSD and CNRI and JPython and Python
-URL:                       http://www.jython.org/
+URL:                       https://www.jython.org/
 
 # Use the included fetch-jython.sh script to generate the source drop
 # Usage: sh fetch-jython.sh %%{scm_tag}
